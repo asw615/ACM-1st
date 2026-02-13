@@ -91,7 +91,7 @@ agent_rl <- function(prevChoice, feedback, omega = 0.1) {
 } 
 
 
-
+#### IMPLEMENT EXTRACTION OF CHOICE PROB
 
 ```
 
