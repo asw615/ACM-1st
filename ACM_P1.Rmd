@@ -1,0 +1,135 @@
+---
+title: "ACM_P1"
+author: "Mattis"
+date: "2026-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+### Packages
+
+pacman::p_load(tidyverse)
+
+```
+
+
+
+```{r}
+
+### Global params 
+
+
+# Number of trials per simulation
+trials <- 120  
+
+# Number of agents to simulate
+agents <- 100  
+
+# set seed
+ set.seed(2001)
+
+
+```
+
+
+
+```{r}
+
+### Win Stay Lose Shift agent -- from Riccardo 
+
+
+agent_wsls <- function(prevChoice, feedback, noise = 0) { ## Implementation of probabilistic version
+  # Input validation
+  if (!prevChoice %in% c(0, 1)) stop("Previous choice must be 0 or 1.")
+  if (!feedback %in% c(0, 1)) stop("Feedback must be 0 or 1.")
+  if (!is.numeric(noise) || noise < 0 || noise > 1) stop("Noise must be a probability between 0 and 1.")
+
+  # Core WSLS logic:
+  # If feedback is 1 (win), stay: choice = prevChoice
+  # If feedback is 0 (loss), shift: choice = 1 - prevChoice
+  choice <- ifelse(feedback == 1, prevChoice, 1 - prevChoice)
+
+  # Apply noise if specified
+  if (noise > 0 && runif(1) < noise) {
+    # Override with a random 50/50 choice
+    choice <- sample(c(0, 1), 1)
+  }
+
+  return(choice)
+}
+
+
+```
+
+
+
+
+```{r}
+
+
+### Reinforcement Learning agent 
+
+
+agent_rl <- function(prevChoice, feedback, omega = 0.1) {
+  
+  # Input validation 
+  if (!prevChoice %in% c(0, 1)) stop("Previous choice must be 0 or 1.")
+  if (!feedback %in% c(0, 0.5, 1)) stop("Feedback must be 0 or 1. (or init value)")
+  if (!is.numeric(omega) || omega < 0 || omega > 1) stop("Omega must be between 0 and 1.")
+  
+  # Create current choice based on previous choice and feedback
+  
+  choice_prob <- prevChoice + omega*(feedback - prevChoice)
+  
+  # enter choice in bernoulli distribution to get a binary choice
+  
+  choice <- rbinom(1, 1, choice_prob)
+  
+  return(choice)
+  
+} 
+
+
+
+
+```
+
+
+```{r}
+
+## Setting initial choices 
+
+# For WSLS, we can start with a random choice
+wsls_init <- sample(c(0, 1), 1)
+
+# For RL, we start with 0.5
+
+prevChoice_init <- 0.5 
+
+feedback_init <- 0.5
+
+
+# Setting up vectors for data storage 
+
+wsls_choices_vs_rl <- rep(NA, trials)
+feedback_vs_rl <- rep(NA, trials)
+
+rl_choices_vs_wsls <- rep(NA, trials)
+feedback_vs_wsls <- rep(NA, trials)
+
+## Insert first choices
+
+wsls_choices_vs_rl[1] <- agent_wsls(wsls_init, feedback_init)
+rl_choices_vs_wsls[1] <- agent_rl(prevChoice_init, feedback_init)
+
+## Setup game loop 
+
+for (t in 2:trials) {}
+
+
+
+
+```
+
+
