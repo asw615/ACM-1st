@@ -74,7 +74,7 @@ agent_wsls <- function(prevChoice, feedback, noise = 0) { ## Implementation of p
 agent_rl <- function(prevChoice, feedback, omega = 0.1) {
   
   # Input validation 
-  if (!prevChoice %in% c(0, 1)) stop("Previous choice must be 0 or 1.")
+  if (!prevChoice %in% c(0, 0.5, 1)) stop("Previous choice must be 0 or 1. (or init value)")
   if (!feedback %in% c(0, 0.5, 1)) stop("Feedback must be 0 or 1. (or init value)")
   if (!is.numeric(omega) || omega < 0 || omega > 1) stop("Omega must be between 0 and 1.")
   
@@ -107,7 +107,8 @@ wsls_init <- sample(c(0, 1), 1)
 
 prevChoice_init <- 0.5 
 
-feedback_init <- 0.5
+feedback_init_RL <- 0.5
+feedback_init_WSLS <- 1 # Start on a win
 
 
 # Setting up vectors for data storage 
@@ -120,12 +121,50 @@ feedback_vs_wsls <- rep(NA, trials)
 
 ## Insert first choices
 
-wsls_choices_vs_rl[1] <- agent_wsls(wsls_init, feedback_init)
-rl_choices_vs_wsls[1] <- agent_rl(prevChoice_init, feedback_init)
+wsls_choices_vs_rl[1] <- agent_wsls(wsls_init, feedback_init_WSLS)
+rl_choices_vs_wsls[1] <- agent_rl(prevChoice_init, feedback_init_RL)
 
 ## Setup game loop 
 
-for (t in 2:trials) {}
+for (t in 2:trials) {
+  
+  
+  ## Setup who is the matcher 
+  # Feedback for agent 1 from previous trial (wins if match)
+  prev_feedback1 <- ifelse(wsls_choices_vs_rl[t - 1] == rl_choices_vs_wsls[t - 1], 1, 0)
+  feedback_vs_rl[t - 1] <- prev_feedback1
+
+  # Feedback for agent 2 (opponent) is the opposite (wins if mismatch)
+  prev_feedback2 <- 1 - prev_feedback1
+  
+  ## WSLS updating based on feedback from previous round 
+  
+  wsls_choices_vs_rl[t] <- agent_wsls(wsls_choices_vs_rl[t-1], 
+                                      prev_feedback1,
+                                      noise = 0.1) ## Making it probabilistic with 10% noise
+  
+  
+  ## RL updating based on feedback from previous round
+  rl_choices_vs_wsls[t] <- agent_rl(rl_choices_vs_wsls[t-1], 
+                                    prev_feedback2,
+                                    omega = 0.1) ## Learning rate of 0.1
+  
+  
+  
+  df_vs_rl <- tibble(
+  trial = 1:trials,
+  Self_WSLS = wsls_choices_vs_rl,
+  Opponent_RL = rl_choices_vs_wsls,
+  Feedback_WSLS = feedback_vs_rl, # 1 if WSLS won
+  Feedback_RL = feedback_vs_wsls # 1 if RL won
+) %>% mutate(
+  Cumulative_Performance = cumsum(Feedback_WSLS) / row_number()
+)
+
+  
+  
+  
+}
 
 
 
