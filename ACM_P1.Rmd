@@ -136,6 +136,7 @@ for (t in 2:trials) {
 
   # Feedback for agent 2 (opponent) is the opposite (wins if mismatch)
   prev_feedback2 <- 1 - prev_feedback1
+  feedback_vs_wsls[t - 1] <- prev_feedback2
   
   ## WSLS updating based on feedback from previous round 
   
@@ -147,7 +148,7 @@ for (t in 2:trials) {
   ## RL updating based on feedback from previous round
   rl_choices_vs_wsls[t] <- agent_rl(rl_choices_vs_wsls[t-1], 
                                     prev_feedback2,
-                                    omega = 0.1) ## Learning rate of 0.1
+                                    omega = 0.5) ## Learning rate of 0.1
   
   
   
@@ -168,6 +169,32 @@ for (t in 2:trials) {
 
 
 
+
+```
+
+
+
+```{r}
+
+## Viz 
+
+
+p_choices_wsls <- ggplot(df_vs_rl, aes(x = trial)) +
+  geom_line(aes(y = Self_WSLS, color = "WSLS Agent")) +
+  geom_line(aes(y = Opponent_RL + 0.05, color = "RL Agent"), linetype = "dashed") + # Offset slightly
+  labs(title = "WSLS vs. RL", y = "Choice (0/1)") + theme_classic() + ylim(-0.1, 1.1)
+
+
+p_perf_wsls <- ggplot(df_vs_rl, aes(x = trial, y = Cumulative_Performance)) +
+  geom_line(color = "purple", size = 1) + geom_hline(yintercept = 0.5, linetype = "dashed") +
+  labs(title = "WSLS Performance vs. RL", y = "Proportion Wins") + theme_classic() + ylim(0, 1)
+
+
+
+# Arrange plots
+
+library(gridExtra)
+grid.arrange(p_choices_wsls, p_perf_wsls, nrow = 2)
 
 ```
 
