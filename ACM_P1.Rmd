@@ -137,12 +137,12 @@ for (t in 2:trials) {
   ## WSLS updating based on feedback from previous round 
   wsls_choices_vs_rl[t] <- agent_wsls(wsls_choices_vs_rl[t-1], 
                                       prev_feedback1,
-                                      noise = 0.1)
+                                      noise = 0.9)
   
   ## RL updating based on feedback from previous round
   choice_rl <- agent_rl(choice_probs_rl[t-1],  
                         prev_feedback2,
-                        omega = 0.5) ## LEARNING RATE TWEAK THIS
+                        omega = 0.1) ## LEARNING RATE TWEAK THIS
   
   rl_choices_vs_wsls[t] <- choice_rl$choice
   choice_probs_rl[t] <- choice_rl$choice_prob
@@ -155,7 +155,7 @@ df_vs_rl <- tibble(
   Opponent_RL = rl_choices_vs_wsls,
   Feedback_WSLS = feedback_vs_rl,
   Feedback_RL = feedback_vs_wsls,
-  Choice_Prob_RL = choice_probs_rl  # Added this column
+  Choice_Prob_RL = choice_probs_rl  
 ) %>% mutate(
   Cumulative_Performance = cumsum(Feedback_WSLS) / row_number()
 )
@@ -164,14 +164,14 @@ df_vs_rl <- tibble(
 p_choices_wsls <- ggplot(df_vs_rl, aes(x = trial)) +
   geom_line(aes(y = Self_WSLS, color = "WSLS Agent")) +
   geom_line(aes(y = Opponent_RL + 0.05, color = "RL Agent"), linetype = "dashed") +
-  labs(title = "WSLS vs. RL", y = "Choice (0/1)") + 
+  labs(title = "WSLS vs. RL (0.9 LR)", y = "Choice (0/1)") + 
   theme_cowplot() + 
   ylim(-0.1, 1.1)
 
 p_perf_wsls <- ggplot(df_vs_rl, aes(x = trial, y = Cumulative_Performance)) +
   geom_line(color = "purple", size = 1) + 
   geom_hline(yintercept = 0.5, linetype = "dashed") +
-  labs(title = "WSLS Performance vs. RL", y = "Proportion Wins") + 
+  labs(title = "WSLS Performance vs. RL (0.9 LR)", y = "Proportion Wins") + 
   theme_cowplot() + 
   ylim(0, 1)
 
@@ -182,7 +182,7 @@ grid.arrange(p_choices_wsls, p_perf_wsls, nrow = 2)
 # Plot choice probabilities 
 p_choice_prob <- ggplot(df_vs_rl, aes(x = trial, y = Choice_Prob_RL)) +  # FIX 4: Use the column name
   geom_line(color = "blue", size = 1) + 
-  labs(title = "RL Agent Choice Probability of Choosing 1 (0.5 LR)", 
+  labs(title = "RL Agent Choice Probability of Choosing 1 (0.9 LR)", 
        y = "Choice Probability") + 
   theme_cowplot() + 
   ylim(0, 1)
