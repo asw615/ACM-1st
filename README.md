@@ -95,13 +95,11 @@ The model diagrams are included above in each model section. Add additional gene
 - Requires minimal memory (previous action + previous outcome only).
 - Outperforms pure randomness by adapting to immediate feedback.
 - Does not build a richer internal model of opponent tendencies.
-- The noise term can reflect attentional lapses, motor noise, or imperfect rule execution.
 
 ### RL cognitive constraints
 - Uses memory-dependent belief updating rather than pure one-step switching.
 - Explicitly computes prediction error and updates strategy proportionally.
 - Learning-rate weighting controls how strongly recent outcomes dominate behavior.
-- In matching pennies, this shapes strategic stability, volatility, and exploitability.
 
 ### Outcome and implications
 The relative performance of WSLS and RL depends on parameterization and interaction dynamics. In this project, the comparison is used to discuss how simple heuristic adaptation (WSLS) contrasts with incremental belief-based adaptation (RL) under realistic cognitive constraints.
