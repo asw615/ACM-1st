@@ -17,14 +17,14 @@ pacman::p_load(tidyverse, cowplot)
 
 ```{r}
 
-### Global params 
+### Global params
 
 
 # Number of trials per simulation
-trials <- 120  
+trials <- 120
 
 # Number of agents to simulate
-agents <- 100  
+agents <- 100
 
 # set seed
  set.seed(2001)
@@ -36,7 +36,7 @@ agents <- 100
 
 ```{r}
 
-### Win Stay Lose Shift agent -- from Riccardo 
+### Win Stay Lose Shift agent -- from Riccardo
 
 
 agent_wsls <- function(prevChoice, feedback, noise = 0) { ## Implementation of probabilistic version
@@ -68,26 +68,30 @@ agent_wsls <- function(prevChoice, feedback, noise = 0) { ## Implementation of p
 ```{r}
 
 
-### Reinforcement Learning agent 
+### Reinforcement Learning agent (Rescorla-Wagner / delta rule)
+# Tracks a belief about the rate at which the opponent plays 'right' (1).
+# Updates from the opponent's last observed choice (cf. AdvCogMod codebook ch.3).
+# Plays as the non-matcher, so it picks the side it expects the opponent NOT to play.
 
 
-agent_rl <- function(prevChoice, feedback, omega = 0.1) {
-  
-  # Input validation 
-  if (!feedback %in% c(0, 0.5, 1)) stop("Feedback must be 0 or 1. (or init value)")
-  if (!is.numeric(omega) || omega < 0 || omega > 1) stop("Omega must be between 0 and 1.")
-  
-  # Create current choice based on previous choice and feedback
-  
-  choice_prob <- prevChoice + omega*(feedback - prevChoice)
-  
-  # enter choice in bernoulli distribution to get a binary choice
-  
+agent_rl <- function(belief, opponent_prev_choice, alpha = 0.1) {
+
+  # Input validation
+  if (!opponent_prev_choice %in% c(0, 1)) stop("Opponent's previous choice must be 0 or 1.")
+  if (!is.numeric(alpha) || alpha < 0 || alpha > 1) stop("Alpha must be between 0 and 1.")
+
+  # Update belief about opponent picking 1
+
+  belief <- belief + alpha * (opponent_prev_choice - belief)
+
+  # Non-matcher, so probability of choosing 1 is the chance the opponent picks 0
+
+  choice_prob <- 1 - belief
   choice <- rbinom(1, 1, choice_prob)
-  
-  return(list(choice = choice, choice_prob = choice_prob))
-  
-} 
+
+  return(list(choice = choice, choice_prob = choice_prob, belief = belief))
+
+}
 
 
 #### IMPLEMENT EXTRACTION OF CHOICE PROB
@@ -97,56 +101,50 @@ agent_rl <- function(prevChoice, feedback, omega = 0.1) {
 
 ```{r}
 
-## Setting initial choices 
-# WSLS random choice 
-
+## Setting initial choices
+# Both agents pick at random on the first trial
 wsls_init <- sample(c(0, 1), 1)
 
-# For RL, random as well 
-prevChoice_init <- 0.5 
-feedback_init_RL <- 0.5
+# RL starts with an unbiased belief about the opponent
+belief_init <- 0.5
 
-feedback_init_WSLS <- 1 # Start on a win
-
-# Setting up vectors for data storage 
+# Setting up vectors for data storage
 wsls_choices_vs_rl <- rep(NA, trials)
 feedback_vs_rl <- rep(NA, trials)
 rl_choices_vs_wsls <- rep(NA, trials)
-feedback_vs_wsls <- rep(NA, trials)
 choice_probs_rl <- rep(NA, trials)
+beliefs_rl <- rep(NA, trials)
 
 ## Insert first choices
-wsls_choices_vs_rl[1] <- agent_wsls(wsls_init, feedback_init_WSLS)
+wsls_choices_vs_rl[1] <- wsls_init
+beliefs_rl[1] <- belief_init
+choice_probs_rl[1] <- 1 - belief_init
+rl_choices_vs_wsls[1] <- rbinom(1, 1, choice_probs_rl[1])
 
-# RL agent returning choice and choice probability
-rl_result_init <- agent_rl(prevChoice_init, feedback_init_RL)
-rl_choices_vs_wsls[1] <- rl_result_init$choice
-choice_probs_rl[1] <- rl_result_init$choice_prob  # Store the initial prob
-
-## Setup game loop 
+## Setup game loop
 for (t in 2:trials) {
-  
-  ## Setup who is the matcher 
-  prev_feedback1 <- ifelse(wsls_choices_vs_rl[t - 1] == rl_choices_vs_wsls[t - 1], 1, 0)
-  feedback_vs_rl[t - 1] <- prev_feedback1
-  
-  # Feedback for agent 2 
-  prev_feedback2 <- 1 - prev_feedback1
-  feedback_vs_wsls[t - 1] <- prev_feedback2
-  
-  ## WSLS updating based on feedback from previous round 
-  wsls_choices_vs_rl[t] <- agent_wsls(wsls_choices_vs_rl[t-1], 
-                                      prev_feedback1,
-                                      noise = 0.9)
-  
-  ## RL updating based on feedback from previous round
-  choice_rl <- agent_rl(choice_probs_rl[t-1],  
-                        prev_feedback2,
-                        omega = 0.1) ## LEARNING RATE TWEAK THIS
-  
-  rl_choices_vs_wsls[t] <- choice_rl$choice
-  choice_probs_rl[t] <- choice_rl$choice_prob
+
+  ## Compute previous trial outcome (matcher wins on a match)
+  prev_feedback_wsls <- ifelse(wsls_choices_vs_rl[t - 1] == rl_choices_vs_wsls[t - 1], 1, 0)
+  feedback_vs_rl[t - 1] <- prev_feedback_wsls
+
+  ## WSLS updating based on its own previous outcome
+  wsls_choices_vs_rl[t] <- agent_wsls(wsls_choices_vs_rl[t-1],
+                                      prev_feedback_wsls,
+                                      noise = 0.25)
+
+  ## RL updating from the opponent's previous choice
+  rl_step <- agent_rl(beliefs_rl[t-1],
+                      wsls_choices_vs_rl[t-1],
+                      alpha = 0.1) ## LEARNING RATE TWEAK THIS
+
+  rl_choices_vs_wsls[t] <- rl_step$choice
+  choice_probs_rl[t] <- rl_step$choice_prob
+  beliefs_rl[t] <- rl_step$belief
 }
+
+# fill in last-trial feedback so the column isn't NA at the end
+feedback_vs_rl[trials] <- ifelse(wsls_choices_vs_rl[trials] == rl_choices_vs_wsls[trials], 1, 0)
 
 #  dataframe creation
 df_vs_rl <- tibble(
@@ -154,8 +152,8 @@ df_vs_rl <- tibble(
   Self_WSLS = wsls_choices_vs_rl,
   Opponent_RL = rl_choices_vs_wsls,
   Feedback_WSLS = feedback_vs_rl,
-  Feedback_RL = feedback_vs_wsls,
-  Choice_Prob_RL = choice_probs_rl  
+  Choice_Prob_RL = choice_probs_rl,
+  Belief_RL = beliefs_rl
 ) %>% mutate(
   Cumulative_Performance = cumsum(Feedback_WSLS) / row_number()
 )
@@ -164,27 +162,27 @@ df_vs_rl <- tibble(
 p_choices_wsls <- ggplot(df_vs_rl, aes(x = trial)) +
   geom_line(aes(y = Self_WSLS, color = "WSLS Agent")) +
   geom_line(aes(y = Opponent_RL + 0.05, color = "RL Agent"), linetype = "dashed") +
-  labs(title = "WSLS vs. RL (0.9 LR)", y = "Choice (0/1)") + 
-  theme_cowplot() + 
+  labs(title = "WSLS vs. RL (0.1 LR)", y = "Choice (0/1)") +
+  theme_cowplot() +
   ylim(-0.1, 1.1)
 
 p_perf_wsls <- ggplot(df_vs_rl, aes(x = trial, y = Cumulative_Performance)) +
-  geom_line(color = "purple", size = 1) + 
+  geom_line(color = "purple", size = 1) +
   geom_hline(yintercept = 0.5, linetype = "dashed") +
-  labs(title = "WSLS Performance vs. RL (0.9 LR)", y = "Proportion Wins") + 
-  theme_cowplot() + 
+  labs(title = "WSLS Performance vs. RL (0.1 LR)", y = "Proportion Wins") +
+  theme_cowplot() +
   ylim(0, 1)
 
 
 library(gridExtra)
 grid.arrange(p_choices_wsls, p_perf_wsls, nrow = 2)
 
-# Plot choice probabilities 
+# Plot choice probabilities
 p_choice_prob <- ggplot(df_vs_rl, aes(x = trial, y = Choice_Prob_RL)) +  # FIX 4: Use the column name
-  geom_line(color = "blue", size = 1) + 
-  labs(title = "RL Agent Choice Probability of Choosing 1 (0.9 LR)", 
-       y = "Choice Probability") + 
-  theme_cowplot() + 
+  geom_line(color = "blue", size = 1) +
+  labs(title = "RL Agent Choice Probability of Choosing 1 (0.1 LR)",
+       y = "Choice Probability") +
+  theme_cowplot() +
   ylim(0, 1)
 
 p_choice_prob
