@@ -12,6 +12,3 @@ For a single interactive run, open `ACM_P1.Rmd` and knit. For the full set of fi
 
 ## Parameters
 WSLS noise is fixed at 0.25. The RL learning rate (`alpha`) is set inline in the simulation chunk and was swept over {0.1, 0.5, 0.9} for the report.
-
-## Models
-The agent functions adapt the AdvCogMod 2023 codebook at https://fusaroli.github.io/AdvancedCognitiveModeling2023/. Full verbal and formal model descriptions live in the report.
